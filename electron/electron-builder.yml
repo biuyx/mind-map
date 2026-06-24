@@ -11,6 +11,8 @@ files:
   - main.js
   - menu.js
   - help.js
+  - workspace.js
+  - file-panel.js
   - mcp-wrapper.js
   - preload-bridge.js
   - preload-early.js

@@ -1,9 +1,31 @@
-const { app, BrowserWindow, Menu, dialog, clipboard } = require('electron')
+const { app, BrowserWindow, Menu, dialog, clipboard, ipcMain } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const { buildAppMenu, getLabels } = require('./menu')
 const { devEntry, packagedEntry, fullConfig } = require('./mcp-config')
 const { buildHelpHtml } = require('./help')
+const ws = require('./workspace')
+
+// IPC for the GUI file-tree panel — same workspace folder as the MCP tools.
+let fileIpcReady = false
+function registerFileIpc() {
+  if (fileIpcReady) return
+  fileIpcReady = true
+  ws.init()
+  ipcMain.handle('mmfiles:getWorkspace', () => ws.getDir())
+  ipcMain.handle('mmfiles:setWorkspace', (e, dir) => ws.setDir(dir))
+  ipcMain.handle('mmfiles:pickWorkspace', async () => {
+    const r = await dialog.showOpenDialog(mainWindow, { properties: ['openDirectory', 'createDirectory'] })
+    if (r.canceled || !r.filePaths[0]) return null
+    return ws.setDir(r.filePaths[0])
+  })
+  ipcMain.handle('mmfiles:list', () => ws.list())
+  ipcMain.handle('mmfiles:read', (e, name) => ws.read(name))
+  ipcMain.handle('mmfiles:write', (e, name, data) => ws.write(name, data))
+  ipcMain.handle('mmfiles:create', (e, name, data) => ws.create(name, data))
+  ipcMain.handle('mmfiles:rename', (e, from, to) => ws.rename(from, to))
+  ipcMain.handle('mmfiles:delete', (e, name) => ws.remove(name))
+}
 
 const isMcpMode = process.argv.includes('--mcp')
 const isRegisterMode = process.argv.includes('--register')
@@ -169,6 +191,7 @@ function createWindow() {
   })
 
   applyMenu(mainWindow) // initial localized menu (default zh; resynced after load)
+  registerFileIpc()
 
   const indexPath = getIndexPath()
   console.error(`[electron] Loading: ${indexPath}`)
@@ -220,18 +243,18 @@ function createWindow() {
       // ignore
     }
 
-    // GUI 模式无需 MCP 桥接（桥接仅用于 Agent 联动），到此即可
-    if (!isMcpMode) return
-
-    // 轮询检测 window.__mindMap，就绪后注入 WebSocket 桥接（仅 MCP 模式）
+    // 等 MindMap 就绪后注入：MCP 桥接（仅 --mcp）+ 文件树面板（可见窗口）
+    const needBridge = isMcpMode
+    const needPanel = !mcpHeadless
+    if (!needBridge && !needPanel) return
     console.error('[electron] waiting for MindMap...')
     const maxAttempts = 100 // 最多等 20 秒
     for (let i = 0; i < maxAttempts; i++) {
       try {
         const hasMindMap = await mainWindow.webContents.executeJavaScript('!!window.__mindMap')
         if (hasMindMap) {
-          console.error('[electron] MindMap found! Injecting WebSocket bridge...')
-          await injectBridge()
+          if (needBridge) { console.error('[electron] injecting MCP bridge...'); await injectBridge() }
+          if (needPanel) { console.error('[electron] injecting file panel...'); await injectFilePanel() }
           return
         }
       } catch (e) {
@@ -260,6 +283,17 @@ async function injectBridge() {
     console.error('[electron] WebSocket bridge injected')
   } catch (e) {
     console.error('[electron] Bridge injection failed:', e.message)
+  }
+}
+
+// 注入工作区文件树侧边栏（Shadow DOM 隔离，使用 window.mmFiles + window.__mindMap）
+async function injectFilePanel() {
+  try {
+    const code = fs.readFileSync(path.join(__dirname, 'file-panel.js'), 'utf8')
+    await mainWindow.webContents.executeJavaScript(`(function(){\n${code}\n})();`)
+    console.error('[electron] file panel injected')
+  } catch (e) {
+    console.error('[electron] File panel injection failed:', e.message)
   }
 }
 
