@@ -126,9 +126,12 @@ cd web && set NODE_OPTIONS=--openssl-legacy-provider && npm run build
 
 > OV 级（含 Certum 开源证书）签名后，SmartScreen 声誉仍需靠下载量积累；想首次即无警告用 EV 或 Azure Trusted Signing。
 
-## MCP 工具（15 个）
+## MCP 工具（23 个）
 
 读取：`get_mindmap` `get_node_detail` `search_nodes`
 写入：`set_mindmap` `add_node` `add_sibling_node` `edit_node` `delete_node` `move_node`
 样式/布局：`set_theme` `set_layout` `set_node_style`
 导出/历史：`export_mindmap` `undo` `redo`
+工作空间：`get_workspace` `set_workspace` `list_files` `open_file` `new_file` `save_file` `rename_file` `delete_file`
+
+工作空间是一个存放 `.smm` 文件的文件夹（默认 `~/MindMaps`，可用 `set_workspace` 或环境变量 `MCP_WORKSPACE` 指定，记忆在 `~/.mindmap-mcp/config.json`）。Agent 可借此管理整库脑图：列出 / 打开 / 新建 / 保存 / 重命名 / 删除 —— `open_file`/`save_file` 复用桥接的 `set_mindmap`/`get_mindmap`，文件名限定在工作空间内（禁止路径穿越）。

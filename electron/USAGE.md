@@ -103,7 +103,7 @@ set ELECTRON_RUN_AS_NODE=1
 
 ---
 
-## 五、工具一览（15 个）
+## 五、工具一览（23 个）
 
 | 类别 | 工具 | 说明 |
 |---|---|---|
@@ -121,6 +121,13 @@ set ELECTRON_RUN_AS_NODE=1
 | | `set_node_style` | 设置单节点样式（颜色、字号、边框、形状…） |
 | 导出/历史 | `export_mindmap` | 导出 markdown / json / svg |
 | | `undo` / `redo` | 撤销 / 重做 |
+| 工作空间 | `get_workspace` / `set_workspace` | 查看 / 设置工作目录（默认 `~/MindMaps`） |
+| | `list_files` | 列出工作区里的 `.smm` 文件 |
+| | `open_file` / `new_file` | 打开 / 新建脑图文件 |
+| | `save_file` | 保存当前内容到文件（默认当前打开的文件） |
+| | `rename_file` / `delete_file` | 重命名 / 删除文件 |
+
+> **工作空间**：一个存放 `.smm` 脑图的文件夹，让 Agent 能管理整库脑图而不只是单张图。默认 `~/MindMaps`；改用别的目录就 `set_workspace` 或设环境变量 `MCP_WORKSPACE`（会记到 `~/.mindmap-mcp/config.json`）。例：「列出我的脑图」「新建一张叫 roadmap 的」「打开 meeting-notes 那张并加一个分支，然后保存」。
 
 ---
 

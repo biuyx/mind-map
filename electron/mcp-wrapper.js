@@ -18,10 +18,56 @@ const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio
 const { z } = require('zod')
 const path = require('path')
 const fs = require('fs')
+const os = require('os')
 const { randomUUID } = require('crypto')
 
 const isMcpMode = process.argv.includes('--mcp')
 const WS_PORT = parseInt(process.env.MCP_WS_PORT || '19527')
+
+// ========== 工作空间（一个存放 .smm 脑图文件的文件夹） ==========
+
+const WORKSPACE_CONFIG = path.join(os.homedir(), '.mindmap-mcp', 'config.json')
+let workspaceDir = ''
+let currentFile = null // 当前打开文件的文件名（basename）
+
+function initWorkspace() {
+  let cfg = {}
+  try { cfg = JSON.parse(fs.readFileSync(WORKSPACE_CONFIG, 'utf8')) } catch (e) {}
+  workspaceDir = process.env.MCP_WORKSPACE || cfg.workspaceDir || path.join(os.homedir(), 'MindMaps')
+  try { fs.mkdirSync(workspaceDir, { recursive: true }) } catch (e) {}
+}
+
+function persistWorkspace() {
+  try {
+    fs.mkdirSync(path.dirname(WORKSPACE_CONFIG), { recursive: true })
+    fs.writeFileSync(WORKSPACE_CONFIG, JSON.stringify({ workspaceDir }, null, 2))
+  } catch (e) {}
+}
+
+// 把用户给的文件名安全解析到工作空间内（禁止路径分隔符/穿越）
+function resolveInWorkspace(name) {
+  if (!name || typeof name !== 'string') throw new Error('file name is required')
+  let base = name.trim()
+  if (base === '' || base === '.' || base === '..') throw new Error('invalid file name')
+  if (/[\\/]/.test(base)) throw new Error('use a file name only (no path separators)')
+  if (!/\.smm$/i.test(base)) base += '.smm'
+  return { name: base, full: path.join(workspaceDir, base) }
+}
+
+function listWorkspaceFiles() {
+  let entries = []
+  try { entries = fs.readdirSync(workspaceDir, { withFileTypes: true }) } catch (e) { return [] }
+  return entries
+    .filter(e => e.isFile() && /\.smm$/i.test(e.name))
+    .map(e => {
+      const full = path.join(workspaceDir, e.name)
+      let size = 0
+      let mtime = null
+      try { const st = fs.statSync(full); size = st.size; mtime = st.mtime.toISOString() } catch (e2) {}
+      return { name: e.name, size, mtime, current: e.name === currentFile }
+    })
+    .sort((a, b) => a.name.localeCompare(b.name))
+}
 
 // ========== Electron 子进程管理 ==========
 
@@ -347,6 +393,118 @@ function createMcpServer() {
     }
   )
 
+  // ===== 工作空间 / 文件管理工具 =====
+
+  server.tool(
+    'get_workspace',
+    'Get the current workspace folder, the open file, and file count',
+    {},
+    async () => {
+      return { content: [{ type: 'text', text: JSON.stringify({ workspaceDir, currentFile, fileCount: listWorkspaceFiles().length }, null, 2) }] }
+    }
+  )
+
+  server.tool(
+    'set_workspace',
+    'Set the workspace folder (created if missing)',
+    { dir: z.string().describe('Absolute path to the workspace folder') },
+    async ({ dir }) => {
+      workspaceDir = dir
+      fs.mkdirSync(workspaceDir, { recursive: true })
+      currentFile = null
+      persistWorkspace()
+      return { content: [{ type: 'text', text: JSON.stringify({ success: true, workspaceDir }) }] }
+    }
+  )
+
+  server.tool(
+    'list_files',
+    'List the mind map (.smm) files in the workspace',
+    {},
+    async () => {
+      return { content: [{ type: 'text', text: JSON.stringify({ workspaceDir, files: listWorkspaceFiles() }, null, 2) }] }
+    }
+  )
+
+  server.tool(
+    'open_file',
+    'Open a workspace .smm file into the editor (replaces the current mind map)',
+    { name: z.string().describe('File name in the workspace, e.g. "notes.smm"') },
+    async ({ name }) => {
+      const { name: base, full } = resolveInWorkspace(name)
+      if (!fs.existsSync(full)) throw new Error('file not found: ' + base)
+      const data = JSON.parse(fs.readFileSync(full, 'utf8'))
+      await call('set_mindmap', { data })
+      currentFile = base
+      return { content: [{ type: 'text', text: JSON.stringify({ success: true, opened: base }) }] }
+    }
+  )
+
+  server.tool(
+    'new_file',
+    'Create a new .smm file in the workspace and (by default) open it',
+    {
+      name: z.string().describe('New file name'),
+      open: z.boolean().default(true).describe('Open it in the editor after creating'),
+      data: z.any().optional().describe('Optional full mind map data; defaults to an empty map named after the file')
+    },
+    async ({ name, open, data }) => {
+      const { name: base, full } = resolveInWorkspace(name)
+      if (fs.existsSync(full)) throw new Error('file already exists: ' + base)
+      const content = data || {
+        root: { data: { text: base.replace(/\.smm$/i, '') }, children: [] },
+        layout: 'logicalStructure',
+        theme: { template: 'classic4', config: {} }
+      }
+      fs.writeFileSync(full, JSON.stringify(content, null, 2))
+      if (open) { await call('set_mindmap', { data: content }); currentFile = base }
+      return { content: [{ type: 'text', text: JSON.stringify({ success: true, created: base, opened: !!open }) }] }
+    }
+  )
+
+  server.tool(
+    'save_file',
+    'Save the current editor content to a workspace file (defaults to the open file)',
+    { name: z.string().optional().describe('Target file name; defaults to the currently open file') },
+    async ({ name }) => {
+      const target = name || currentFile
+      if (!target) throw new Error('no file is open; pass a name')
+      const { name: base, full } = resolveInWorkspace(target)
+      const data = await call('get_mindmap', { format: 'json' })
+      fs.writeFileSync(full, JSON.stringify(data, null, 2))
+      currentFile = base
+      return { content: [{ type: 'text', text: JSON.stringify({ success: true, saved: base }) }] }
+    }
+  )
+
+  server.tool(
+    'rename_file',
+    'Rename a workspace file',
+    { from: z.string().describe('Existing file name'), to: z.string().describe('New file name') },
+    async ({ from, to }) => {
+      const a = resolveInWorkspace(from)
+      const b = resolveInWorkspace(to)
+      if (!fs.existsSync(a.full)) throw new Error('file not found: ' + a.name)
+      if (fs.existsSync(b.full)) throw new Error('target already exists: ' + b.name)
+      fs.renameSync(a.full, b.full)
+      if (currentFile === a.name) currentFile = b.name
+      return { content: [{ type: 'text', text: JSON.stringify({ success: true, from: a.name, to: b.name }) }] }
+    }
+  )
+
+  server.tool(
+    'delete_file',
+    'Delete a workspace file',
+    { name: z.string().describe('File name to delete') },
+    async ({ name }) => {
+      const { name: base, full } = resolveInWorkspace(name)
+      if (!fs.existsSync(full)) throw new Error('file not found: ' + base)
+      fs.unlinkSync(full)
+      if (currentFile === base) currentFile = null
+      return { content: [{ type: 'text', text: JSON.stringify({ success: true, deleted: base }) }] }
+    }
+  )
+
   return server
 }
 
@@ -354,6 +512,9 @@ function createMcpServer() {
 
 async function main() {
   process.stderr.write(`[wrapper] Starting (mode: ${isMcpMode ? 'MCP' : 'GUI'}, ws-port: ${WS_PORT})\n`)
+
+  initWorkspace()
+  process.stderr.write(`[wrapper] Workspace: ${workspaceDir}\n`)
 
   // 1. 启动 WebSocket 服务器
   startWebSocketServer()
