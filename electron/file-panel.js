@@ -28,15 +28,14 @@ function loadData(d) {
 
 var LANG = (function () { try { return localStorage.getItem('SIMPLE_MIND_MAP_LANG') || 'zh' } catch (e) { return 'zh' } })()
 var T = ({
-  zh: { title: '工作区', pick: '切换目录', refresh: '刷新', pin: '钉住（不自动收起）', save: '保存当前', empty: '还没有脑图，下方输入名字新建', ph: '新建脑图名…', create: '新建', rename: '重命名', del: '删除', confirmDel: '删除「$」？', saved: '已保存', tip: '点文件名打开 · 改动记得保存' },
-  zhtw: { title: '工作區', pick: '切換目錄', refresh: '重新整理', pin: '釘住（不自動收合）', save: '儲存目前', empty: '還沒有心智圖，下方輸入名稱新建', ph: '新建心智圖名…', create: '新建', rename: '重新命名', del: '刪除', confirmDel: '刪除「$」？', saved: '已儲存', tip: '點檔名開啟 · 改動記得儲存' },
-  en: { title: 'Workspace', pick: 'Folder', refresh: 'Refresh', pin: 'Pin (keep open)', save: 'Save current', empty: 'No maps yet — type a name below', ph: 'New map name…', create: 'New', rename: 'Rename', del: 'Delete', confirmDel: 'Delete "$"?', saved: 'Saved', tip: 'Click a name to open · save your edits' },
-  vi: { title: 'Không gian', pick: 'Thư mục', refresh: 'Làm mới', pin: 'Ghim (giữ mở)', save: 'Lưu hiện tại', empty: 'Chưa có sơ đồ — nhập tên bên dưới', ph: 'Tên sơ đồ mới…', create: 'Tạo', rename: 'Đổi tên', del: 'Xoá', confirmDel: 'Xoá "$"?', saved: 'Đã lưu', tip: 'Bấm tên để mở · nhớ lưu' }
+  zh: { title: '工作区', pick: '切换目录', refresh: '刷新', save: '保存当前', empty: '还没有脑图，下方输入名字新建', ph: '新建脑图名…', create: '新建', rename: '重命名', del: '删除', confirmDel: '删除「$」？', saved: '已保存', tip: '点文件名打开 · 改动记得保存' },
+  zhtw: { title: '工作區', pick: '切換目錄', refresh: '重新整理', save: '儲存目前', empty: '還沒有心智圖，下方輸入名稱新建', ph: '新建心智圖名…', create: '新建', rename: '重新命名', del: '刪除', confirmDel: '刪除「$」？', saved: '已儲存', tip: '點檔名開啟 · 改動記得儲存' },
+  en: { title: 'Workspace', pick: 'Folder', refresh: 'Refresh', save: 'Save current', empty: 'No maps yet — type a name below', ph: 'New map name…', create: 'New', rename: 'Rename', del: 'Delete', confirmDel: 'Delete "$"?', saved: 'Saved', tip: 'Click a name to open · save your edits' },
+  vi: { title: 'Không gian', pick: 'Thư mục', refresh: 'Làm mới', save: 'Lưu hiện tại', empty: 'Chưa có sơ đồ — nhập tên bên dưới', ph: 'Tên sơ đồ mới…', create: 'Tạo', rename: 'Đổi tên', del: 'Xoá', confirmDel: 'Xoá "$"?', saved: 'Đã lưu', tip: 'Bấm tên để mở · nhớ lưu' }
 })[LANG] || ({}).zh
-if (!T.title) T = { title: '工作区', pick: '切换目录', refresh: '刷新', pin: '钉住（不自动收起）', save: '保存当前', empty: '还没有脑图，下方输入名字新建', ph: '新建脑图名…', create: '新建', rename: '重命名', del: '删除', confirmDel: '删除「$」？', saved: '已保存', tip: '点文件名打开 · 改动记得保存' }
+if (!T.title) T = { title: '工作区', pick: '切换目录', refresh: '刷新', save: '保存当前', empty: '还没有脑图，下方输入名字新建', ph: '新建脑图名…', create: '新建', rename: '重命名', del: '删除', confirmDel: '删除「$」？', saved: '已保存', tip: '点文件名打开 · 改动记得保存' }
 
 var currentName = null
-var pinned = (function () { try { return localStorage.getItem('MINDMAP_PANEL_PINNED') === '1' } catch (e) { return false } })()
 
 var host = document.createElement('div')
 host.id = '__mm_file_panel_host'
@@ -54,7 +53,6 @@ sh.innerHTML =
   '.hd .t{ font-weight: 600; font-size: 14px; flex: 1; }' +
   '.hd button,.foot button,.newrow button{ cursor: pointer; border: 1px solid rgba(127,127,127,.4); background: rgba(127,127,127,.1); color: inherit; border-radius: 6px; font-size: 12px; padding: 3px 8px; }' +
   '.hd button:hover,.foot button:hover{ background: rgba(127,127,127,.2); }' +
-  '.pin.on{ background:#2f6fed; color:#fff; border-color:#2f6fed; }' +
   '.dir{ font-size: 11px; color: #8b949e; padding: 0 10px 6px; word-break: break-all; }' +
   '.newrow{ display: flex; gap: 6px; padding: 8px 10px; }' +
   '.newrow input{ flex: 1; min-width: 0; padding: 4px 7px; border: 1px solid rgba(127,127,127,.4); border-radius: 6px; background: transparent; color: inherit; font-size: 12.5px; }' +
@@ -78,8 +76,7 @@ sh.innerHTML =
   '<div class="tab">' + T.title + '</div>' +
   '<div class="panel">' +
   '  <div class="hd"><span class="t">' + T.title + '</span>' +
-  '    <button class="pin" title="' + T.pin + '">📌</button>' +
-  '    <button class="pick" title="' + T.pick + '">📁</button>' +
+  '    <button class="pick">' + T.pick + '</button>' +
   '    <button class="refresh" title="' + T.refresh + '">⟳</button>' +
   '    <button class="close" title="×">×</button>' +
   '  </div>' +
@@ -97,7 +94,7 @@ var newInput = $('.newname')
 
 function toggle(open) { panel.classList.toggle('open', open === undefined ? !panel.classList.contains('open') : open) }
 $('.tab').addEventListener('click', function () { toggle(true) })
-$('.close').addEventListener('click', function () { if (pinned) setPinned(false); toggle(false) })
+$('.close').addEventListener('click', function () { toggle(false) })
 $('.refresh').addEventListener('click', refresh)
 $('.pick').addEventListener('click', function () {
   api.pickWorkspace().then(function (dir) { if (dir) { currentName = null; refresh() } }).catch(noop)
@@ -105,25 +102,6 @@ $('.pick').addEventListener('click', function () {
 $('.save').addEventListener('click', saveCurrent)
 $('.create').addEventListener('click', createFromInput)
 newInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') createFromInput() })
-
-var PANEL_W = 252
-var pinBtn = $('.pin')
-// Pinned = docked: push the editor's .container right by the panel width so the
-// panel sits beside the canvas (not over it), then re-fit the map.
-function applyDock() {
-  var c = document.querySelector('.container')
-  if (c) { c.style.transition = 'left .18s ease'; c.style.left = pinned ? PANEL_W + 'px' : '' }
-  try { window.dispatchEvent(new Event('resize')) } catch (e) {}
-}
-function setPinned(v) {
-  pinned = v
-  try { localStorage.setItem('MINDMAP_PANEL_PINNED', pinned ? '1' : '0') } catch (e) {}
-  pinBtn.classList.toggle('on', pinned)
-  if (pinned) toggle(true)
-  applyDock()
-}
-pinBtn.addEventListener('click', function () { setPinned(!pinned) })
-pinBtn.classList.toggle('on', pinned)
 
 function noop() {}
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') }
@@ -167,7 +145,7 @@ function openFile(name) {
     loadData(data)
     currentName = name
     refresh()
-    if (!pinned) toggle(false) // pinned: keep the panel open after selecting
+    toggle(false)
   }).catch(function (e) { alert(String(e && e.message || e)) })
 }
 
@@ -225,6 +203,5 @@ function flash(msg) {
   flashTimer = setTimeout(function () { tip.textContent = prev }, 1400)
 }
 
-if (pinned) { toggle(true); applyDock() } // remembered pin state: open + dock on launch
 refresh()
 console.log('[panel] workspace file panel ready (' + LANG + ')')
