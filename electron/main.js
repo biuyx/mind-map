@@ -4,6 +4,10 @@ const fs = require('fs')
 
 const isMcpMode = process.argv.includes('--mcp')
 const isRegisterMode = process.argv.includes('--register')
+// MCP mode shows a live window by default so you can watch the Agent edit;
+// set MCP_HEADLESS=1 to run off-screen (background / unattended use).
+const mcpHeadless = isMcpMode && /^(1|true)$/i.test(process.env.MCP_HEADLESS || '')
+const mcpVisible = isMcpMode && !mcpHeadless
 const WS_PORT = parseInt(process.env.MCP_WS_PORT || '19527')
 
 function getIndexPath() {
@@ -17,10 +21,10 @@ let mainWindow = null
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: isMcpMode ? 800 : 1280,
-    height: isMcpMode ? 600 : 800,
-    show: !isMcpMode,
-    ...(isMcpMode ? { x: -2000, y: -2000 } : {}),
+    width: isMcpMode ? 1100 : 1280,
+    height: isMcpMode ? 760 : 800,
+    show: false, // shown on ready-to-show (inactive in MCP mode, stays hidden if headless)
+    ...(mcpHeadless ? { x: -2000, y: -2000 } : {}),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -28,9 +32,22 @@ function createWindow() {
     }
   })
 
-  if (isMcpMode) {
+  if (mcpHeadless) {
     mainWindow.setSkipTaskbar(true)
+  } else if (mcpVisible) {
+    // Label this window as the Agent-driven live view (and stop the page from
+    // overwriting that title).
+    mainWindow.on('page-title-updated', (e) => {
+      e.preventDefault()
+      mainWindow.setTitle('MindMap MCP — Agent 实时视图')
+    })
   }
+
+  mainWindow.once('ready-to-show', () => {
+    if (mcpHeadless) return
+    if (mcpVisible) mainWindow.showInactive() // show without stealing focus
+    else mainWindow.show()
+  })
 
   const indexPath = getIndexPath()
   console.error(`[electron] Loading: ${indexPath}`)

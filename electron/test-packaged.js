@@ -14,7 +14,7 @@ const WRAPPER = path.join(UNPACKED, 'resources', 'app', 'mcp-wrapper.js')
 
 const child = spawn(EXE, [WRAPPER, '--mcp'], {
   stdio: ['pipe', 'pipe', 'pipe'],
-  env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', MCP_WS_PORT: '19528' }
+  env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', MCP_WS_PORT: '19528', MCP_HEADLESS: '1' }
 })
 
 let id = 1

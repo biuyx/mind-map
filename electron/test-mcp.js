@@ -29,7 +29,7 @@ function makeNotification(method, params = {}) {
 // 启动 mcp-wrapper.js（纯 Node.js 进程）
 const child = spawn(process.execPath, [WRAPPER_PATH, '--mcp'], {
   stdio: ['pipe', 'pipe', 'pipe'],
-  env: { ...process.env, MCP_WS_PORT: '19527' }
+  env: { ...process.env, MCP_WS_PORT: '19527', MCP_HEADLESS: '1' }
 })
 
 // ========== 响应解析 ==========

@@ -26,8 +26,9 @@
 双击快捷方式打开，就是完整的脑图编辑器。布局、主题、导出、快捷键等通用脑图功能见上游文档 [README_MORE_ZH.md](../README_MORE_ZH.md)。
 
 ### 2. MCP 模式（给 Agent 用）
-由 MCP 客户端自动以 `--mcp` 参数拉起，在**后台离屏实例**上操作，Agent 通过 15 个工具控制脑图。
-此模式**不显示窗口**，结果通过 `get_mindmap` / `export_mindmap` 取回（详见第五节）。
+由 MCP 客户端自动以 `--mcp` 参数拉起，Agent 通过 15 个工具控制脑图。
+**默认会弹出一个实时窗口**（标题“MindMap MCP — Agent 实时视图”），你能直接看着 Agent 增删改节点、换布局/主题，窗口不抢占焦点。
+若想后台静默运行（不弹窗），在注册配置的 `env` 里加 `"MCP_HEADLESS": "1"`，再用 `get_mindmap` / `export_mindmap` 取结果。
 
 ---
 
@@ -123,7 +124,7 @@ set ELECTRON_RUN_AS_NODE=1
 
 - **首次启动慢**：MCP 模式要等内部 Electron 实例起来并连上 WebSocket（最多约 30 秒），之后调用即时。
 - **端口冲突**：默认 WebSocket 端口 `19527`。被占用就在注册配置的 `env` 里改 `MCP_WS_PORT`（注册值与运行值需一致）。
-- **看不到 Agent 的修改**：MCP 模式是离屏后台实例，不显示窗口。用 `get_mindmap` / `export_mindmap` 取结果即可；想可视化查看就另开图形界面（两种模式目前各自独立、不互通）。
+- **MCP 实时窗口**：MCP 模式默认弹出实时窗口，可直接看 Agent 编辑；不想要就在 `env` 里设 `MCP_HEADLESS=1` 改为后台离屏运行，再用 `get_mindmap` / `export_mindmap` 取结果。
 - **SmartScreen 警告**：未签名导致，见第一节；签名方案见 [README.md](README.md)。
 - **卸载**：开始菜单的卸载项，或 设置 → 应用 → 卸载。
 
