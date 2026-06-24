@@ -9,6 +9,7 @@ directories:
 # (ws, zod, @modelcontextprotocol/sdk) and excludes devDeps (electron, builder).
 files:
   - main.js
+  - menu.js
   - mcp-wrapper.js
   - preload-bridge.js
   - mcp-config.js

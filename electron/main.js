@@ -1,6 +1,7 @@
-const { app, BrowserWindow } = require('electron')
+const { app, BrowserWindow, Menu, dialog } = require('electron')
 const path = require('path')
 const fs = require('fs')
+const { buildAppMenu, getLabels } = require('./menu')
 
 const isMcpMode = process.argv.includes('--mcp')
 const isRegisterMode = process.argv.includes('--register')
@@ -18,6 +19,43 @@ function getIndexPath() {
 }
 
 let mainWindow = null
+let currentLang = 'zh' // UI language for the native menu (synced with the web app)
+
+// Build + install the localized native menu for the current language.
+function applyMenu(win) {
+  Menu.setApplicationMenu(
+    buildAppMenu({
+      lang: currentLang,
+      onSelectLang: lang => selectLang(win, lang),
+      onAbout: () => showAbout()
+    })
+  )
+}
+
+// Switch language from the native menu: persist it for the web app and reload
+// so the web UI follows (its getLang() reads this on startup), then refresh the
+// menu so the radio + labels update.
+function selectLang(win, lang) {
+  currentLang = lang
+  if (win && !win.isDestroyed()) {
+    win.webContents
+      .executeJavaScript(`try{localStorage.setItem('SIMPLE_MIND_MAP_LANG', ${JSON.stringify(lang)})}catch(e){}`)
+      .then(() => { if (!win.isDestroyed()) win.webContents.reload() })
+      .catch(() => {})
+  }
+  applyMenu(win)
+}
+
+function showAbout() {
+  const t = getLabels(currentLang)
+  dialog.showMessageBox({
+    type: 'info',
+    title: t.about,
+    message: 'MindMap MCP',
+    detail: `${t.version}: ${app.getVersion()}`,
+    noLink: true
+  })
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -49,6 +87,8 @@ function createWindow() {
     else mainWindow.show()
   })
 
+  applyMenu(mainWindow) // initial localized menu (default zh; resynced after load)
+
   const indexPath = getIndexPath()
   console.error(`[electron] Loading: ${indexPath}`)
   mainWindow.loadFile(indexPath)
@@ -61,6 +101,19 @@ function createWindow() {
   // 页面加载完成后，轮询等待 MindMap 就绪，然后注入 WebSocket 桥接
   mainWindow.webContents.on('did-finish-load', async () => {
     console.error('[electron] Page loaded, waiting for MindMap...')
+
+    // 同步本地菜单语言到 web 端已保存的语言
+    try {
+      const saved = await mainWindow.webContents.executeJavaScript(
+        "localStorage.getItem('SIMPLE_MIND_MAP_LANG') || 'zh'"
+      )
+      if (saved && saved !== currentLang) {
+        currentLang = saved
+        applyMenu(mainWindow)
+      }
+    } catch (e) {
+      // ignore
+    }
 
     // 轮询检测 window.__mindMap
     const maxAttempts = 100 // 最多等 20 秒

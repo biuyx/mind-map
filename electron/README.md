@@ -15,6 +15,7 @@ Agent ──stdio JSON-RPC── mcp-wrapper.js ──WebSocket(127.0.0.1:19527)
 - `mcp-wrapper.js` — MCP 入口。启动 WebSocket 服务、拉起 Electron 子进程、在 stdio 上跑 MCP（15 个工具）。
 - `main.js` — Electron 主进程。`--mcp` 模式下加载脑图页面（默认可见实时窗口，`MCP_HEADLESS=1` 则离屏），轮询 `window.__mindMap` 就绪后注入桥接脚本。
 - `preload-bridge.js` — 注入到页面里的命令处理器，直接操作 MindMap 实例。
+- `menu.js` — 本地原生菜单（多语言：简体 / 繁體 / English / Tiếng Việt，默认简体；语言菜单切换会同步 web 界面语言）。
 - `test-mcp.js` — 端到端测试。
 
 两种运行模式：
