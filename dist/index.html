@@ -83,42 +83,4 @@
         // 可以通过window.$bus.$on()来监听应用的一些事件
         // 实例化页面
         window.initApp()
-      }</script><script>(function() {
-        let evtSource = null
-        let retryTimer = null
-
-        function connect() {
-          try {
-            evtSource = new EventSource('http://127.0.0.1:3457/sse')
-            evtSource.onmessage = function(e) {
-              try {
-                const raw = e.data
-                let fullData = typeof raw === 'string' ? JSON.parse(raw) : raw
-                if (!window.__mindMap) {
-                  console.log('[LiveSync] 等待脑图实例就绪...')
-                  return
-                }
-                // 确保 root 节点存在
-                if (!fullData.root) fullData.root = { data: { text: '空白脑图' }, children: [] }
-                window.__mindMap.setFullData(fullData)
-                console.log('[LiveSync] 脑图已同步更新')
-              } catch (err) {
-                console.warn('[LiveSync] 解析数据失败:', err)
-              }
-            }
-            evtSource.onerror = function() {
-              evtSource.close()
-              evtSource = null
-              // 5 秒后重连
-              retryTimer = setTimeout(connect, 5000)
-            }
-            evtSource.onopen = function() {
-              console.log('[LiveSync] 已连接实时同步服务')
-              if (retryTimer) { clearTimeout(retryTimer); retryTimer = null }
-            }
-          } catch (e) {
-            // 同步服务未启动时静默失败
-          }
-        }
-        connect()
-      })()</script><script src="dist/js/chunk-vendors.js?db2569c713c3a7954bf7"></script><script src="dist/js/app.js?db2569c713c3a7954bf7"></script></body></html>
+      }</script><script src="dist/js/chunk-vendors.js?db2569c713c3a7954bf7"></script><script src="dist/js/app.js?db2569c713c3a7954bf7"></script></body></html>
