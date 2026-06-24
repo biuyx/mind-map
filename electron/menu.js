@@ -27,7 +27,7 @@ const LABELS = {
     mcp: 'MCP', mcpRunning: 'MCP 服务运行中', mcpGui: '图形模式（未运行 MCP）',
     mcpStatus: 'MCP 状态', mcpConnect: '连接 / 注册…', mcpCopyConfig: '复制连接配置',
     mcpAgentConnected: 'Agent 已连接', mcpAgentDisconnected: 'Agent 未连接',
-    mcpPort: '端口', copied: '已复制到剪贴板'
+    mcpPort: '端口', copied: '已复制到剪贴板', mcpHelp: '使用说明…'
   },
   zhtw: {
     file: '檔案', quit: '結束', edit: '編輯', undo: '復原', redo: '重做',
@@ -39,7 +39,7 @@ const LABELS = {
     mcp: 'MCP', mcpRunning: 'MCP 服務運行中', mcpGui: '圖形模式（未運行 MCP）',
     mcpStatus: 'MCP 狀態', mcpConnect: '連接 / 註冊…', mcpCopyConfig: '複製連接設定',
     mcpAgentConnected: 'Agent 已連接', mcpAgentDisconnected: 'Agent 未連接',
-    mcpPort: '連接埠', copied: '已複製到剪貼簿'
+    mcpPort: '連接埠', copied: '已複製到剪貼簿', mcpHelp: '使用說明…'
   },
   en: {
     file: 'File', quit: 'Quit', edit: 'Edit', undo: 'Undo', redo: 'Redo',
@@ -51,7 +51,7 @@ const LABELS = {
     mcp: 'MCP', mcpRunning: 'MCP server running', mcpGui: 'GUI mode (MCP not running)',
     mcpStatus: 'MCP Status', mcpConnect: 'Connect / Register…', mcpCopyConfig: 'Copy config',
     mcpAgentConnected: 'Agent connected', mcpAgentDisconnected: 'Agent not connected',
-    mcpPort: 'Port', copied: 'Copied to clipboard'
+    mcpPort: 'Port', copied: 'Copied to clipboard', mcpHelp: 'Usage guide…'
   },
   vi: {
     file: 'Tệp', quit: 'Thoát', edit: 'Chỉnh sửa', undo: 'Hoàn tác', redo: 'Làm lại',
@@ -63,7 +63,7 @@ const LABELS = {
     mcp: 'MCP', mcpRunning: 'MCP đang chạy', mcpGui: 'Chế độ GUI (MCP chưa chạy)',
     mcpStatus: 'Trạng thái MCP', mcpConnect: 'Kết nối / Đăng ký…', mcpCopyConfig: 'Sao chép cấu hình',
     mcpAgentConnected: 'Agent đã kết nối', mcpAgentDisconnected: 'Agent chưa kết nối',
-    mcpPort: 'Cổng', copied: 'Đã sao chép'
+    mcpPort: 'Cổng', copied: 'Đã sao chép', mcpHelp: 'Hướng dẫn…'
   }
 }
 
@@ -81,7 +81,7 @@ function getLabels(lang) {
  * @param {()=>void} [o.onMcpCopyConfig] MCP → Copy config
  * @param {()=>void} o.onAbout       called for Help → About
  */
-function buildAppMenu({ lang, mcp, onSelectLang, onMcpStatus, onMcpConnect, onMcpCopyConfig, onAbout }) {
+function buildAppMenu({ lang, mcp, onSelectLang, onMcpStatus, onMcpConnect, onMcpCopyConfig, onMcpHelp, onAbout }) {
   const t = getLabels(lang)
   const mcpRunning = mcp && mcp.mode === 'mcp'
   const mcpStatusLine = `${mcpRunning ? '● ' + t.mcpRunning : '○ ' + t.mcpGui}  ·  ${t.mcpPort} ${mcp ? mcp.port : ''}`
@@ -120,7 +120,9 @@ function buildAppMenu({ lang, mcp, onSelectLang, onMcpStatus, onMcpConnect, onMc
         { label: t.mcpStatus + '…', click: () => onMcpStatus && onMcpStatus() },
         { type: 'separator' },
         { label: t.mcpConnect, click: () => onMcpConnect && onMcpConnect() },
-        { label: t.mcpCopyConfig, click: () => onMcpCopyConfig && onMcpCopyConfig() }
+        { label: t.mcpCopyConfig, click: () => onMcpCopyConfig && onMcpCopyConfig() },
+        { type: 'separator' },
+        { label: t.mcpHelp, click: () => onMcpHelp && onMcpHelp() }
       ]
     },
     {

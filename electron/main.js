@@ -3,6 +3,7 @@ const path = require('path')
 const fs = require('fs')
 const { buildAppMenu, getLabels } = require('./menu')
 const { devEntry, packagedEntry, fullConfig } = require('./mcp-config')
+const { buildHelpHtml } = require('./help')
 
 const isMcpMode = process.argv.includes('--mcp')
 const isRegisterMode = process.argv.includes('--register')
@@ -32,6 +33,7 @@ function applyMenu(win) {
       onMcpStatus: () => showMcpStatus(),
       onMcpConnect: () => showRegisterDialog(),
       onMcpCopyConfig: () => copyMcpConfig(),
+      onMcpHelp: () => showHelp(),
       onAbout: () => showAbout()
     })
   )
@@ -76,6 +78,26 @@ function copyMcpConfig() {
   const t = getLabels(currentLang)
   clipboard.writeText(JSON.stringify(fullConfig(mcpEntry()), null, 2))
   dialog.showMessageBox({ type: 'info', noLink: true, title: 'MCP', message: t.copied })
+}
+
+// Menu: open the MCP usage guide (per-client connect configs) in a window.
+let helpWindow = null
+function showHelp() {
+  if (helpWindow && !helpWindow.isDestroyed()) {
+    helpWindow.focus()
+    return
+  }
+  const html = buildHelpHtml({ lang: currentLang, entry: mcpEntry() })
+  helpWindow = new BrowserWindow({
+    width: 880,
+    height: 760,
+    title: getLabels(currentLang).mcpHelp.replace(/[.…]+$/, ''),
+    autoHideMenuBar: true,
+    webPreferences: { contextIsolation: true }
+  })
+  helpWindow.removeMenu()
+  helpWindow.on('closed', () => { helpWindow = null })
+  helpWindow.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
 }
 
 // Menu: show live MCP status (mode / port / agent connection).
