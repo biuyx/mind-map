@@ -2,6 +2,7 @@
   "name": "mind-map-mcp",
   "version": "1.0.0",
   "description": "思绪思维导图桌面版 - 内置 MCP 服务，支持 Agent 联动操控",
+  "author": "wuzp",
   "main": "main.js",
   "scripts": {
     "start": "electron .",

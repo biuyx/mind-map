@@ -17,6 +17,7 @@ const { McpServer } = require('@modelcontextprotocol/sdk/server/mcp.js')
 const { StdioServerTransport } = require('@modelcontextprotocol/sdk/server/stdio.js')
 const { z } = require('zod')
 const path = require('path')
+const fs = require('fs')
 const { randomUUID } = require('crypto')
 
 const isMcpMode = process.argv.includes('--mcp')
@@ -27,19 +28,30 @@ const WS_PORT = parseInt(process.env.MCP_WS_PORT || '19527')
 let electronProcess = null
 
 function startElectron() {
-  const electronBin = path.join(__dirname, 'node_modules', 'electron', 'dist', 'electron.exe')
-  const mainJs = path.join(__dirname, 'main.js')
+  // Resolve the Electron GUI binary.
+  // - Dev: electron lives in node_modules; run main.js as its entry script.
+  // - Packaged: this wrapper itself runs under the app exe via
+  //   ELECTRON_RUN_AS_NODE=1, so re-launch the same exe (process.execPath) with
+  //   no script arg — the packaged app boots main.js from package.json "main".
+  const devBin = path.join(__dirname, 'node_modules', 'electron', 'dist', 'electron.exe')
+  const isPackaged = !fs.existsSync(devBin)
+  const electronBin = isPackaged ? process.execPath : devBin
 
-  const args = [mainJs]
+  const args = isPackaged ? [] : [path.join(__dirname, 'main.js')]
   if (isMcpMode) args.push('--mcp')
+
+  // Strip ELECTRON_RUN_AS_NODE so the child boots as a real Electron app
+  // (window + renderer), not in node mode inherited from this wrapper.
+  const childEnv = {
+    ...process.env,
+    MCP_WS_PORT: String(WS_PORT),
+    ELECTRON_NO_ATTACH_CONSOLE: '1'
+  }
+  delete childEnv.ELECTRON_RUN_AS_NODE
 
   electronProcess = spawn(electronBin, args, {
     stdio: ['ignore', 'ignore', 'pipe'],
-    env: {
-      ...process.env,
-      MCP_WS_PORT: String(WS_PORT),
-      ELECTRON_NO_ATTACH_CONSOLE: '1'
-    }
+    env: childEnv
   })
 
   electronProcess.stderr.on('data', (chunk) => {

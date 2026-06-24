@@ -1,14 +1,20 @@
 appId: com.mindmap.mcp
 productName: MindMap MCP
+# Output to dist_electron (gitignored) so the packaged installer never clobbers
+# the committed web build under ../dist.
 directories:
-  output: dist
+  output: dist_electron
   buildResources: resources
+# Only the app's own source. electron-builder auto-includes production deps
+# (ws, zod, @modelcontextprotocol/sdk) and excludes devDeps (electron, builder).
 files:
   - main.js
   - mcp-wrapper.js
   - preload-bridge.js
-  - node_modules/**/*
   - package.json
+# Keep app files unpacked so mcp-wrapper.js can be launched directly via
+# ELECTRON_RUN_AS_NODE for MCP mode (see README.md).
+asar: false
 extraResources:
   - from: ../dist
     to: dist
