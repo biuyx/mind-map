@@ -13,6 +13,19 @@ var mm = window.__mindMap
 var api = window.mmFiles
 if (!mm || !api) { console.log('[panel] missing __mindMap or mmFiles'); return }
 
+// 桌面里隐藏与「工作区」重复、且依赖浏览器 File System Access 的工具栏按钮
+// （目录 / 新建 / 打开 / 另存为）；保留 导入 / 导出。文件管理统一走工作区面板。
+;(function () {
+  var sel = '.toolbarBtn:has(.icondakai),.toolbarBtn:has(.iconxinjian),.toolbarBtn:has(.iconwenjian1),.toolbarBtn:has(.iconlingcunwei)'
+  try {
+    var st = document.createElement('style')
+    st.setAttribute('data-mm-toolbar-tweak', '1')
+    st.textContent = sel + '{display:none !important}'
+    document.head.appendChild(st)
+    console.log('[panel] hid toolbar buttons matched: ' + document.querySelectorAll(sel).length)
+  } catch (e) { console.log('[panel] toolbar tweak failed: ' + e.message) }
+})()
+
 var DEFAULT_VIEW = {
   transform: { scaleX: 1, scaleY: 1, shear: 0, rotate: 0, translateX: 0, translateY: 0, originX: 0, originY: 0, a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 },
   state: { scale: 1, x: 0, y: 0, sx: 0, sy: 0 }
