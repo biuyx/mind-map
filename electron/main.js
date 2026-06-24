@@ -1,7 +1,8 @@
-const { app, BrowserWindow, Menu, dialog } = require('electron')
+const { app, BrowserWindow, Menu, dialog, clipboard } = require('electron')
 const path = require('path')
 const fs = require('fs')
 const { buildAppMenu, getLabels } = require('./menu')
+const { devEntry, packagedEntry, fullConfig } = require('./mcp-config')
 
 const isMcpMode = process.argv.includes('--mcp')
 const isRegisterMode = process.argv.includes('--register')
@@ -26,7 +27,11 @@ function applyMenu(win) {
   Menu.setApplicationMenu(
     buildAppMenu({
       lang: currentLang,
+      mcp: { mode: isMcpMode ? 'mcp' : 'gui', port: WS_PORT },
       onSelectLang: lang => selectLang(win, lang),
+      onMcpStatus: () => showMcpStatus(),
+      onMcpConnect: () => showRegisterDialog(),
+      onMcpCopyConfig: () => copyMcpConfig(),
       onAbout: () => showAbout()
     })
   )
@@ -54,6 +59,47 @@ function showAbout() {
     message: 'MindMap MCP',
     detail: `${t.version}: ${app.getVersion()}`,
     noLink: true
+  })
+}
+
+// The `mind-map` MCP server entry for this install (dev = node; packaged = exe
+// via ELECTRON_RUN_AS_NODE).
+function mcpEntry() {
+  const wrapperPath = path.join(app.getAppPath(), 'mcp-wrapper.js')
+  return app.isPackaged
+    ? packagedEntry(process.execPath, wrapperPath)
+    : devEntry(wrapperPath)
+}
+
+// Menu: copy the connect config to the clipboard.
+function copyMcpConfig() {
+  const t = getLabels(currentLang)
+  clipboard.writeText(JSON.stringify(fullConfig(mcpEntry()), null, 2))
+  dialog.showMessageBox({ type: 'info', noLink: true, title: 'MCP', message: t.copied })
+}
+
+// Menu: show live MCP status (mode / port / agent connection).
+async function showMcpStatus() {
+  const t = getLabels(currentLang)
+  let connected = false
+  let port = WS_PORT
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    try {
+      const raw = await mainWindow.webContents.executeJavaScript('JSON.stringify(window.__mcpStatus || null)')
+      const s = JSON.parse(raw)
+      if (s) {
+        connected = !!s.connected
+        if (s.port) port = s.port
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+  const mode = isMcpMode ? t.mcpRunning : t.mcpGui
+  const agent = isMcpMode ? `\n${connected ? t.mcpAgentConnected : t.mcpAgentDisconnected}` : ''
+  dialog.showMessageBox({
+    type: 'info', noLink: true, title: t.mcpStatus, message: 'MindMap MCP',
+    detail: `${mode}\n${t.mcpPort}: ${port}${agent}`
   })
 }
 
@@ -151,7 +197,11 @@ function createWindow() {
       // ignore
     }
 
-    // 轮询检测 window.__mindMap
+    // GUI 模式无需 MCP 桥接（桥接仅用于 Agent 联动），到此即可
+    if (!isMcpMode) return
+
+    // 轮询检测 window.__mindMap，就绪后注入 WebSocket 桥接（仅 MCP 模式）
+    console.error('[electron] waiting for MindMap...')
     const maxAttempts = 100 // 最多等 20 秒
     for (let i = 0; i < maxAttempts; i++) {
       try {
@@ -190,15 +240,10 @@ async function injectBridge() {
   }
 }
 
-// ===== --register: write/copy the MCP config for this install, then quit =====
-async function runRegister() {
-  const { dialog, clipboard } = require('electron')
-  const { devEntry, packagedEntry, fullConfig } = require('./mcp-config')
-
-  const wrapperPath = path.join(app.getAppPath(), 'mcp-wrapper.js')
-  const entry = app.isPackaged
-    ? packagedEntry(process.execPath, wrapperPath)
-    : devEntry(wrapperPath)
+// Show the MCP registration dialog (config + clipboard + optional Claude
+// Desktop merge). Shared by the --register CLI flow and the MCP menu.
+async function showRegisterDialog() {
+  const entry = mcpEntry()
   const json = JSON.stringify(fullConfig(entry), null, 2)
 
   // Save a standalone snippet next to the exe (fall back to userData).
@@ -253,6 +298,11 @@ async function runRegister() {
       await dialog.showMessageBox({ type: 'error', title: '写入失败', message: e.message, noLink: true })
     }
   }
+}
+
+// --register CLI flow: show the dialog, then quit.
+async function runRegister() {
+  await showRegisterDialog()
   app.quit()
 }
 

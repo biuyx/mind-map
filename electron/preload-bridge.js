@@ -14,6 +14,9 @@ if (!mindMap) {
 }
 console.log('[bridge] MindMap found, connecting WebSocket to ws://127.0.0.1:' + WS_PORT)
 
+// 暴露 MCP 连接状态给主进程（菜单状态显示读取）
+window.__mcpStatus = { connected: false, port: WS_PORT }
+
 // ========== 辅助函数 ==========
 
 function findNode(mm, uid) {
@@ -203,6 +206,7 @@ function connectWebSocket() {
 
   ws.onopen = function() {
     console.log('[bridge] WebSocket connected!')
+    if (window.__mcpStatus) window.__mcpStatus.connected = true
   }
 
   ws.onmessage = function(event) {
@@ -230,6 +234,7 @@ function connectWebSocket() {
   }
 
   ws.onclose = function() {
+    if (window.__mcpStatus) window.__mcpStatus.connected = false
     console.log('[bridge] WebSocket closed, reconnecting in 3s...')
     setTimeout(connectWebSocket, 3000)
   }
