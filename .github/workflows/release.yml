@@ -1,0 +1,78 @@
+name: Release Windows installer
+
+# Builds the MindMap MCP Windows installer (NSIS) from the committed web build
+# under dist/, and publishes it. Tag a release (e.g. `git tag v1.0.1 && git push
+# --tags`) or run manually from the Actions tab.
+#
+# NOTE: this repo commits the built web bundle in dist/. If you changed anything
+# under web/, rebuild it locally before tagging:
+#     cd web && set NODE_OPTIONS=--openssl-legacy-provider && npm run build
+# (web uses vue-cli 4 / webpack 4, which needs the legacy OpenSSL flag on Node 17+.)
+# Then commit dist/. The optional "Rebuild web" step below can do it in CI instead.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      rebuild_web:
+        description: 'Rebuild the web bundle from source instead of using committed dist/'
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # create the GitHub Release and upload assets
+
+jobs:
+  build-win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Optional: rebuild web from source. Off by default (dist/ is committed).
+      - name: Rebuild web (optional)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.rebuild_web }}
+        working-directory: web
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider   # webpack 4 needs this on Node 17+
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install electron app deps
+        working-directory: electron
+        run: npm ci
+
+      # ── Signing ───────────────────────────────────────────────────────────
+      # Unsigned by default. To sign with Azure Trusted Signing, add the secrets
+      # AZURE_TENANT_ID / AZURE_CLIENT_ID / AZURE_CLIENT_SECRET in repo settings,
+      # add a `win.azureSignOptions` block in electron-builder.yml (see
+      # electron/README.md), and uncomment the env below.
+      - name: Build installer (electron-builder)
+        working-directory: electron
+        # env:
+        #   AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        #   AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        #   AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        run: npx electron-builder --win --config electron-builder.yml --publish never
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MindMap-MCP-Setup
+          path: |
+            electron/dist_electron/*.exe
+            electron/dist_electron/*.blockmap
+          if-no-files-found: error
+
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            electron/dist_electron/*.exe
+            electron/dist_electron/*.blockmap

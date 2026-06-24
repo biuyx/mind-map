@@ -88,6 +88,41 @@ npm run build:exe    # = 先构建 web，再 electron-builder --win
 
 > `asar: false`，所以 `mcp-wrapper.js` 以普通文件位于 `resources/app/` 下，可被 `ELECTRON_RUN_AS_NODE` 直接执行。
 
+## CI 发布与代码签名
+
+工作流 `.github/workflows/release.yml`：打 tag（`v*`）或在 Actions 里手动触发，即用**已提交的 `dist/`** 构建安装包并附到 GitHub Release。
+改了 `web/` 源码要先本地重建并提交 `dist/`（web 是 vue-cli4 / webpack4，Node 17+ 需要 legacy OpenSSL flag）：
+
+```bat
+cd web && set NODE_OPTIONS=--openssl-legacy-provider && npm run build
+```
+
+或手动触发时勾选 `rebuild_web`（CI 里重建）。
+
+签名**默认关闭**（未签名安装包会触发 Windows SmartScreen）。两条接入路线：
+
+### Azure Trusted Signing（CI 推荐，云签，可首次即无警告）
+
+1. Azure 建 Trusted Signing account + certificate profile；建服务主体（App registration），授予 “Trusted Signing Certificate Profile Signer” 角色。
+2. 仓库 Secrets 加 `AZURE_TENANT_ID` / `AZURE_CLIENT_ID` / `AZURE_CLIENT_SECRET`。
+3. `electron-builder.yml` 的 `win:` 下加：
+   ```yaml
+   azureSignOptions:
+     publisherName: "你的发布者名"
+     endpoint: "https://wus2.codesigning.azure.net/"   # 按你的区域改
+     codeSigningAccountName: "你的账户名"
+     certificateProfileName: "你的证书配置名"
+   ```
+4. 取消 `release.yml` 里 `env:` 三行注释，重新跑 → 出**已签名**安装包。
+
+### Certum 开源证书（本地 token 签名）
+
+硬件 token 不适合云 CI，本地签即可：SimplySign 接上卡，`electron-builder.yml` 的 `win:` 下加
+`certificateSubjectName: "Open Source Developer, 你的名字"`，本地 `npm run build:exe` 完成签名。
+要把 Certum 云签接进 CI（signtool hook）再找我。
+
+> OV 级（含 Certum 开源证书）签名后，SmartScreen 声誉仍需靠下载量积累；想首次即无警告用 EV 或 Azure Trusted Signing。
+
 ## MCP 工具（15 个）
 
 读取：`get_mindmap` `get_node_detail` `search_nodes`

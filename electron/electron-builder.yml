@@ -32,6 +32,9 @@ win:
   target:
     - nsis
   icon: resources/icon.ico
+  # Code signing is off by default (unsigned -> SmartScreen warning).
+  # To sign, add one of the blocks documented in README.md, e.g. Azure Trusted
+  # Signing (azureSignOptions: ...) or Certum (certificateSubjectName: ...).
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
