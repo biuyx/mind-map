@@ -124,7 +124,8 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: false
+      sandbox: false,
+      preload: path.join(__dirname, 'preload-early.js')
     }
   })
 

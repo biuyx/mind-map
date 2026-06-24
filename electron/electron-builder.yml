@@ -12,6 +12,7 @@ files:
   - menu.js
   - mcp-wrapper.js
   - preload-bridge.js
+  - preload-early.js
   - mcp-config.js
   - register-mcp.js
   - package.json
