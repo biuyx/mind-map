@@ -62,21 +62,32 @@ function list() {
 
 function exists(name) { return fs.existsSync(resolve(name).full) }
 
+// Accept map data as an object OR a JSON string (callers/transports may pass
+// either); never store a stringified string (which would double-encode).
+function asObject(d) {
+  if (typeof d === 'string') {
+    try { return JSON.parse(d) } catch (e) {}
+  }
+  return d
+}
+
 function read(name) {
   const { full } = resolve(name)
-  return JSON.parse(fs.readFileSync(full, 'utf8'))
+  let d = JSON.parse(fs.readFileSync(full, 'utf8'))
+  if (typeof d === 'string') { try { d = JSON.parse(d) } catch (e) {} } // self-heal double-encoded files
+  return d
 }
 
 function write(name, dataObj) {
   const { name: base, full } = resolve(name)
-  fs.writeFileSync(full, JSON.stringify(dataObj, null, 2))
+  fs.writeFileSync(full, JSON.stringify(asObject(dataObj), null, 2))
   return base
 }
 
 function create(name, dataObj) {
   const { name: base, full } = resolve(name)
   if (fs.existsSync(full)) throw new Error('file already exists: ' + base)
-  const content = dataObj || {
+  const content = asObject(dataObj) || {
     root: { data: { text: base.replace(/\.smm$/i, '') }, children: [] },
     layout: 'logicalStructure',
     theme: { template: 'classic4', config: {} }

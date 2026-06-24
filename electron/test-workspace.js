@@ -71,6 +71,12 @@ async function run() {
   await tool('new_file', { name: 'beta', open: false })
   ok(fs.existsSync(f('beta.smm')), 'new_file beta.smm (open:false)')
 
+  // regression: data passed as a JSON string must be stored as an object (not double-encoded)
+  await tool('new_file', { name: 'strcase', open: false, data: JSON.stringify({ root: { data: { text: 'StrData' }, children: [] }, layout: 'logicalStructure', theme: { template: 'classic4', config: {} } }) })
+  const rawStr = JSON.parse(fs.readFileSync(f('strcase.smm'), 'utf8'))
+  ok(typeof rawStr === 'object' && rawStr.root && rawStr.root.data.text === 'StrData', 'JSON-string data stored as object (not double-encoded)')
+  await tool('delete_file', { name: 'strcase' })
+
   r = await tool('open_file', { name: 'alpha' })
   ok(r.parsed.opened === 'alpha.smm', 'open_file alpha')
   r = await tool('get_mindmap', { format: 'markdown' })
