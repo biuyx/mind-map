@@ -1,0 +1,27 @@
+{
+  "name": "mind-map-mcp",
+  "version": "1.0.0",
+  "description": "思绪思维导图桌面版 - 内置 MCP 服务，支持 Agent 联动操控",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "start:mcp": "node mcp-wrapper.js --mcp",
+    "test:mcp": "node test-mcp.js",
+    "build:web": "cd ../web && npm run build",
+    "build:exe": "npm run build:web && electron-builder --win --config electron-builder.yml",
+    "dev": "electron ."
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "ws": "^8.21.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.mindmap.mcp",
+    "productName": "MindMap MCP"
+  }
+}

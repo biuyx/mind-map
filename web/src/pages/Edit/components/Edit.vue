@@ -446,6 +446,7 @@ export default {
           })
         }
       })
+      window.__mindMap = this.mindMap // 暴露给 MCP 桥接 / 实时同步服务
       this.loadPlugins()
       this.mindMap.keyCommand.addShortcut('Control+s', () => {
         this.manualSave()

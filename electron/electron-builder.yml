@@ -1,0 +1,27 @@
+appId: com.mindmap.mcp
+productName: MindMap MCP
+directories:
+  output: dist
+  buildResources: resources
+files:
+  - main.js
+  - mcp-wrapper.js
+  - preload-bridge.js
+  - node_modules/**/*
+  - package.json
+extraResources:
+  - from: ../dist
+    to: dist
+    filter:
+      - "**/*"
+  - from: ../index.html
+    to: index.html
+win:
+  target:
+    - nsis
+  icon: resources/icon.ico
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  installerIcon: resources/icon.ico
+  uninstallerIcon: resources/icon.ico

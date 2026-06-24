@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "mind-map": {
+      "command": "node",
+      "args": ["electron/mcp-wrapper.js", "--mcp"],
+      "env": {
+        "MCP_WS_PORT": "19527"
+      }
+    }
+  }
+}
