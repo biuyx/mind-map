@@ -58,7 +58,21 @@ npm run build:exe    # = 先构建 web，再 electron-builder --win
 
 打包后整个 app 就是 Electron 二进制。利用 `ELECTRON_RUN_AS_NODE=1` 让该 exe 当作 Node 运行 `mcp-wrapper.js`，wrapper 再以 GUI 模式拉起同一个 exe —— 全程自包含，**无需用户另装 Node**。
 
-安装后在 MCP 客户端里这样注册（路径按实际安装目录替换）：
+#### 方式一：注册助手（推荐）
+
+安装目录里随包附带了 `register.cmd` 和 `register-mcp.js`，会**按当前安装路径自动生成正确配置**，不用手填路径：
+
+- **双击 `register.cmd`**（在安装目录）：弹窗显示配置、自动复制到剪贴板，若检测到 Claude Desktop 还可一键写入其配置（会先备份 `.bak`）。等价于运行 `"MindMap MCP.exe" --register`。
+- **命令行**（写入指定配置文件，适合 Claude Code 的 `.mcp.json` 或 `~/.claude.json`）：
+  ```bat
+  set ELECTRON_RUN_AS_NODE=1
+  "MindMap MCP.exe" "resources\app\register-mcp.js" --merge "C:\path\to\.mcp.json"
+  ```
+  不带 `--merge` 则打印片段；`--out <file>` 写一个独立的 `.mcp.json`。开发态用 `npm run register`。
+
+#### 方式二：手动填写
+
+在 MCP 客户端里这样注册（路径按实际安装目录替换）：
 
 ```json
 {

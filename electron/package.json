@@ -7,7 +7,9 @@
   "scripts": {
     "start": "electron .",
     "start:mcp": "node mcp-wrapper.js --mcp",
+    "register": "node register-mcp.js",
     "test:mcp": "node test-mcp.js",
+    "test:packaged": "node test-packaged.js",
     "build:web": "cd ../web && npm run build",
     "build:exe": "npm run build:web && electron-builder --win --config electron-builder.yml",
     "dev": "electron ."

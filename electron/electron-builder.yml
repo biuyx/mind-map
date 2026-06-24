@@ -11,6 +11,8 @@ files:
   - main.js
   - mcp-wrapper.js
   - preload-bridge.js
+  - mcp-config.js
+  - register-mcp.js
   - package.json
 # Keep app files unpacked so mcp-wrapper.js can be launched directly via
 # ELECTRON_RUN_AS_NODE for MCP mode (see README.md).
@@ -22,6 +24,10 @@ extraResources:
       - "**/*"
   - from: ../index.html
     to: index.html
+# Post-install launcher placed next to the exe; runs `<exe> --register`.
+extraFiles:
+  - from: build/register.cmd
+    to: register.cmd
 win:
   target:
     - nsis

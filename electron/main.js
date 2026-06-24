@@ -3,6 +3,7 @@ const path = require('path')
 const fs = require('fs')
 
 const isMcpMode = process.argv.includes('--mcp')
+const isRegisterMode = process.argv.includes('--register')
 const WS_PORT = parseInt(process.env.MCP_WS_PORT || '19527')
 
 function getIndexPath() {
@@ -83,7 +84,74 @@ async function injectBridge() {
   }
 }
 
+// ===== --register: write/copy the MCP config for this install, then quit =====
+async function runRegister() {
+  const { dialog, clipboard } = require('electron')
+  const { devEntry, packagedEntry, fullConfig } = require('./mcp-config')
+
+  const wrapperPath = path.join(app.getAppPath(), 'mcp-wrapper.js')
+  const entry = app.isPackaged
+    ? packagedEntry(process.execPath, wrapperPath)
+    : devEntry(wrapperPath)
+  const json = JSON.stringify(fullConfig(entry), null, 2)
+
+  // Save a standalone snippet next to the exe (fall back to userData).
+  let snippetPath = path.join(path.dirname(process.execPath), 'mind-map.mcp.json')
+  try {
+    fs.writeFileSync(snippetPath, json)
+  } catch (e) {
+    try {
+      snippetPath = path.join(app.getPath('userData'), 'mind-map.mcp.json')
+      fs.writeFileSync(snippetPath, json)
+    } catch (e2) {
+      snippetPath = '(写入文件失败)'
+    }
+  }
+  clipboard.writeText(json)
+
+  // Offer to merge into Claude Desktop's config if that app is present.
+  const claudeCfg = path.join(app.getPath('appData'), 'Claude', 'claude_desktop_config.json')
+  const hasClaude = fs.existsSync(path.dirname(claudeCfg))
+  const buttons = hasClaude
+    ? ['写入 Claude Desktop 配置', '仅复制/保存片段', '取消']
+    : ['仅复制/保存片段', '取消']
+
+  const { response } = await dialog.showMessageBox({
+    type: 'info',
+    title: 'MindMap MCP 注册',
+    message: 'MCP 配置已复制到剪贴板，并保存到：\n' + snippetPath,
+    detail: json,
+    buttons,
+    defaultId: 0,
+    cancelId: buttons.length - 1,
+    noLink: true
+  })
+
+  if (hasClaude && response === 0) {
+    try {
+      let existing = {}
+      if (fs.existsSync(claudeCfg)) {
+        existing = JSON.parse(fs.readFileSync(claudeCfg, 'utf8'))
+        fs.copyFileSync(claudeCfg, claudeCfg + '.bak')
+      } else {
+        fs.mkdirSync(path.dirname(claudeCfg), { recursive: true })
+      }
+      existing.mcpServers = existing.mcpServers || {}
+      existing.mcpServers['mind-map'] = entry
+      fs.writeFileSync(claudeCfg, JSON.stringify(existing, null, 2))
+      await dialog.showMessageBox({
+        type: 'info', title: '完成', noLink: true,
+        message: '已写入 Claude Desktop 配置：\n' + claudeCfg + '\n\n请重启 Claude Desktop 生效。'
+      })
+    } catch (e) {
+      await dialog.showMessageBox({ type: 'error', title: '写入失败', message: e.message, noLink: true })
+    }
+  }
+  app.quit()
+}
+
 app.whenReady().then(() => {
+  if (isRegisterMode) return runRegister()
   createWindow()
 })
 
