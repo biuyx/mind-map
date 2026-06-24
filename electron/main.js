@@ -57,6 +57,18 @@ function showAbout() {
   })
 }
 
+// Map an OS locale (e.g. from app.getLocale()) to one of the supported UI
+// languages; falls back to Simplified Chinese.
+function mapLocale(loc) {
+  const l = (loc || '').toLowerCase()
+  if (l.startsWith('zh')) {
+    return /tw|hk|mo|hant/.test(l) ? 'zhtw' : 'zh'
+  }
+  if (l.startsWith('vi')) return 'vi'
+  if (l.startsWith('en')) return 'en'
+  return 'zh'
+}
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: isMcpMode ? 1100 : 1280,
@@ -101,6 +113,30 @@ function createWindow() {
   // 页面加载完成后，轮询等待 MindMap 就绪，然后注入 WebSocket 桥接
   mainWindow.webContents.on('did-finish-load', async () => {
     console.error('[electron] Page loaded, waiting for MindMap...')
+
+    // 首次启动（仅 GUI，不打扰 MCP 流程）：按系统语言初始化界面语言，默认简体中文
+    if (!isMcpMode) {
+      try {
+        const inited = await mainWindow.webContents.executeJavaScript(
+          "localStorage.getItem('MINDMAP_MCP_LANG_INIT')"
+        )
+        if (!inited) {
+          const detected = mapLocale(app.getLocale())
+          await mainWindow.webContents.executeJavaScript(
+            `localStorage.setItem('MINDMAP_MCP_LANG_INIT','1');localStorage.setItem('SIMPLE_MIND_MAP_LANG', ${JSON.stringify(detected)})`
+          )
+          currentLang = detected
+          applyMenu(mainWindow)
+          // web 默认已落到 zh；若系统语言不同，重载一次让界面应用新语言
+          if (detected !== 'zh') {
+            mainWindow.webContents.reload()
+            return
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
 
     // 同步本地菜单语言到 web 端已保存的语言
     try {
