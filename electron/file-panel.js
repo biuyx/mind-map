@@ -97,7 +97,7 @@ var newInput = $('.newname')
 
 function toggle(open) { panel.classList.toggle('open', open === undefined ? !panel.classList.contains('open') : open) }
 $('.tab').addEventListener('click', function () { toggle(true) })
-$('.close').addEventListener('click', function () { toggle(false) })
+$('.close').addEventListener('click', function () { if (pinned) setPinned(false); toggle(false) })
 $('.refresh').addEventListener('click', refresh)
 $('.pick').addEventListener('click', function () {
   api.pickWorkspace().then(function (dir) { if (dir) { currentName = null; refresh() } }).catch(noop)
@@ -106,15 +106,24 @@ $('.save').addEventListener('click', saveCurrent)
 $('.create').addEventListener('click', createFromInput)
 newInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') createFromInput() })
 
+var PANEL_W = 252
 var pinBtn = $('.pin')
-function updatePin() { pinBtn.classList.toggle('on', pinned) }
-pinBtn.addEventListener('click', function () {
-  pinned = !pinned
+// Pinned = docked: push the editor's .container right by the panel width so the
+// panel sits beside the canvas (not over it), then re-fit the map.
+function applyDock() {
+  var c = document.querySelector('.container')
+  if (c) { c.style.transition = 'left .18s ease'; c.style.left = pinned ? PANEL_W + 'px' : '' }
+  try { window.dispatchEvent(new Event('resize')) } catch (e) {}
+}
+function setPinned(v) {
+  pinned = v
   try { localStorage.setItem('MINDMAP_PANEL_PINNED', pinned ? '1' : '0') } catch (e) {}
-  updatePin()
+  pinBtn.classList.toggle('on', pinned)
   if (pinned) toggle(true)
-})
-updatePin()
+  applyDock()
+}
+pinBtn.addEventListener('click', function () { setPinned(!pinned) })
+pinBtn.classList.toggle('on', pinned)
 
 function noop() {}
 function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') }
@@ -216,6 +225,6 @@ function flash(msg) {
   flashTimer = setTimeout(function () { tip.textContent = prev }, 1400)
 }
 
-if (pinned) toggle(true) // remembered pin state: open on launch
+if (pinned) { toggle(true); applyDock() } // remembered pin state: open + dock on launch
 refresh()
 console.log('[panel] workspace file panel ready (' + LANG + ')')
