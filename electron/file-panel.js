@@ -201,7 +201,11 @@ function beginRename(row, name) {
 function deleteFile(name) {
   if (!window.confirm(T.confirmDel.replace('$', name))) return
   api.remove(name).then(function () {
-    if (currentName === name) currentName = null
+    if (currentName === name) {
+      currentName = null
+      // 删除的是当前打开的文件：把画布清成空白，避免残留显示已删除的内容
+      try { loadData({ root: { data: { text: '' }, children: [] } }) } catch (e) {}
+    }
     refresh()
   }).catch(function (e) { alert(String(e && e.message || e)) })
 }
