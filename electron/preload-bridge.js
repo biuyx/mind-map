@@ -129,15 +129,23 @@ var handlers = {
   },
 
   search_nodes: function(mm, params) {
-    var keyword = params && params.keyword
-    if (!mm.search) throw new Error('Search plugin not loaded')
-    mm.search.search(keyword)
-    var matches = (mm.search.matchNodeList || []).map(function(n) {
-      return {
-        uid: (n.getData && n.getData('uid')) || (n.nodeData && n.nodeData.data && n.nodeData.data.uid),
-        text: (n.getData && n.getData('text')) || (n.nodeData && n.nodeData.data && n.nodeData.data.text)
+    var keyword = (params && params.keyword) || ''
+    // 高亮 UI（若搜索插件可用），但结果数据自己遍历整棵树取，避免依赖插件节点对象
+    if (mm.search && mm.search.search) { try { mm.search.search(keyword) } catch (e) {} }
+    function strip(t) { return (t || '').replace(/<[^>]*>/g, '') }
+    var matches = []
+    function walk(node) {
+      var d = (node && node.data) || {}
+      var text = strip(d.text)
+      if (keyword && text.indexOf(keyword) !== -1) {
+        matches.push({ uid: d.uid, text: text })
       }
-    })
+      if (node && node.children) {
+        for (var i = 0; i < node.children.length; i++) walk(node.children[i])
+      }
+    }
+    var full = mm.getData(true)
+    if (full && full.root) walk(full.root)
     return { matches: matches, count: matches.length }
   },
 

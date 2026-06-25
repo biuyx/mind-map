@@ -72,7 +72,8 @@ function asObject(d) {
 }
 
 function read(name) {
-  const { full } = resolve(name)
+  const { name: base, full } = resolve(name)
+  if (!fs.existsSync(full)) throw new Error('file not found: ' + base)
   let d = JSON.parse(fs.readFileSync(full, 'utf8'))
   if (typeof d === 'string') { try { d = JSON.parse(d) } catch (e) {} } // self-heal double-encoded files
   return d
