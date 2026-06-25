@@ -126,29 +126,44 @@ function startWebSocketServer() {
   return wss
 }
 
+// 等待 Electron 桥接就绪（首次加载约 10s）；工具调用时才等，不阻塞 MCP 握手
+function waitForBridge(timeoutMs = 30000) {
+  if (wsClient && wsClient.readyState === WebSocket.OPEN) return Promise.resolve()
+  return new Promise((resolve, reject) => {
+    const start = Date.now()
+    const iv = setInterval(() => {
+      if (wsClient && wsClient.readyState === WebSocket.OPEN) {
+        clearInterval(iv)
+        resolve()
+      } else if (Date.now() - start > timeoutMs) {
+        clearInterval(iv)
+        reject(new Error('MindMap (Electron) not ready yet — try again in a moment'))
+      }
+    }, 200)
+  })
+}
+
 /**
- * 向 Electron 渲染进程发送命令并等待结果
+ * 向 Electron 渲染进程发送命令并等待结果（必要时先等桥接就绪）
  */
 function sendCommand(method, params = {}) {
   return new Promise((resolve, reject) => {
-    if (!wsClient || wsClient.readyState !== WebSocket.OPEN) {
-      return reject(new Error('WebSocket not connected'))
-    }
+    waitForBridge(30000).then(() => {
+      const requestId = randomUUID()
+      const timer = setTimeout(() => {
+        pendingCommands.delete(requestId)
+        reject(new Error(`Command timeout: ${method}`))
+      }, 30000)
 
-    const requestId = randomUUID()
-    const timer = setTimeout(() => {
-      pendingCommands.delete(requestId)
-      reject(new Error(`Command timeout: ${method}`))
-    }, 30000)
+      pendingCommands.set(requestId, { resolve, reject, timer })
 
-    pendingCommands.set(requestId, { resolve, reject, timer })
-
-    wsClient.send(JSON.stringify({
-      type: 'command',
-      requestId,
-      method,
-      params
-    }))
+      wsClient.send(JSON.stringify({
+        type: 'command',
+        requestId,
+        method,
+        params
+      }))
+    }).catch(reject)
   })
 }
 
@@ -458,25 +473,21 @@ async function main() {
   ws.init()
   process.stderr.write(`[wrapper] Workspace: ${ws.getDir()}\n`)
 
-  // 1. 启动 WebSocket 服务器
+  // 1. 启动 WebSocket 服务器（供 Electron 桥接连接）
   startWebSocketServer()
 
-  // 2. 启动 Electron
+  // 2. 启动 Electron（在后台连接 WebSocket）
   startElectron()
 
-  // 3. 等待 Electron 通过 WebSocket 连接
-  process.stderr.write('[wrapper] Waiting for Electron to connect...\n')
-  await Promise.race([
-    wsReadyPromise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error('Electron did not connect within 30s')), 30000))
-  ])
-  process.stderr.write('[wrapper] Electron connected, MCP tools available\n')
-
-  // 4. 启动 MCP 服务器（stdio）
+  // 3. 立刻启动 stdio MCP 服务器，让客户端握手（initialize/tools/list）秒回，
+  //    避免 Trae 等客户端在 Electron 加载（约 10s）期间因启动超时判定失败；
+  //    具体工具调用时再由 sendCommand→waitForBridge 等待桥接就绪。
   const server = createMcpServer()
   const transport = new StdioServerTransport()
   await server.connect(transport)
-  process.stderr.write('[wrapper] MCP server ready on stdio\n')
+  process.stderr.write('[wrapper] MCP server ready on stdio (Electron connecting in background)\n')
+
+  wsReadyPromise.then(() => process.stderr.write('[wrapper] Electron bridge connected — tools live\n'))
 }
 
 main().catch(e => {
