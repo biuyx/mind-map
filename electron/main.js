@@ -5,6 +5,7 @@ const { buildAppMenu, getLabels } = require('./menu')
 const { devEntry, packagedEntry, fullConfig } = require('./mcp-config')
 const { buildHelpHtml } = require('./help')
 const ws = require('./workspace')
+const { startAiProxy } = require('./ai-proxy')
 
 // IPC for the GUI file-tree panel — same workspace folder as the MCP tools.
 let fileIpcReady = false
@@ -192,6 +193,7 @@ function createWindow() {
 
   applyMenu(mainWindow) // initial localized menu (default zh; resynced after load)
   registerFileIpc()
+  startAiProxy() // 本地 AI 中转（127.0.0.1:3456），让桌面版 AI 功能开箱可用
 
   const indexPath = getIndexPath()
   console.error(`[electron] Loading: ${indexPath}`)

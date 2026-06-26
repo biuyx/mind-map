@@ -18,6 +18,7 @@ Agent ──stdio JSON-RPC── mcp-wrapper.js ──WebSocket(127.0.0.1:19527)
 - `menu.js` — 本地原生菜单（多语言：简体 / 繁體 / English / Tiếng Việt，默认简体；语言菜单切换会同步 web 界面语言）。含 **MCP 菜单**：状态显示、连接/注册、复制配置、使用说明（`help.js` 生成各客户端连接配置：Claude Code/Desktop、Cursor、Trae、Codex(TOML)、Windsurf、Cline）。
 - `workspace.js` — 工作空间（一个 `.smm` 文件夹）共享模块，**MCP 工具与 GUI 文件树共用同一目录**（`~/MindMaps`，可经 `MCP_WORKSPACE`/`set_workspace` 改，记忆在 `~/.mindmap-mcp/config.json`）。
 - `file-panel.js` — 注入式工作区文件树侧边栏（Shadow DOM 隔离），经 `preload-early.js` 暴露的 `window.mmFiles`（IPC 到主进程 fs）读写文件。
+- `ai-proxy.js` — 本地 AI 中转（127.0.0.1:3456），主进程**自动启动**，把 web 端的 AI 请求转发到白名单外部服务（火山方舟 / OpenAI / Anthropic），含 SSRF 防护（域名白名单 + 私有 IP 拦截）。让桌面版 AI 开箱可用，无需单独跑 `web/scripts/ai.js`。
 - `test-mcp.js` — 端到端测试。
 
 两种运行模式：

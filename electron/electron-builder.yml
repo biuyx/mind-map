@@ -13,6 +13,7 @@ files:
   - help.js
   - workspace.js
   - file-panel.js
+  - ai-proxy.js
   - mcp-wrapper.js
   - preload-bridge.js
   - preload-early.js
